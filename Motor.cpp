@@ -18,6 +18,7 @@ Motor::Motor(uint8_t in1, uint8_t in2,
 
 
 /**
+ * setup()
  * Sets up motor including:
  * initializing input pins, stop motor, initializing interrupt pin, check validity of parameters,
  * set encoder speed and direction pins, sets up interrupt
@@ -55,13 +56,14 @@ bool Motor::setUpMotor(void (*encoderISR)()) {
     pinMode(encoderDirPin_, INPUT_PULLUP);
 
     // set up interrupt
-    startTime_us_ = micros();
+    previousControlUpdateTimestamp_us_ = micros();
     initialized_ = true;
     attachInterrupt(interruptNumber, encoderISR, RISING);
     return true;
 }
 
 /**
+ * setup()
  * Takes a cm/second speed and converts to RPM
  * @param speedCmPerSecond
  */
@@ -80,44 +82,62 @@ void Motor::setNewGoalSpeed(float speedCmPerSecond) {
     goalRPM_ = newGoalRPM;
 }
 
+/**
+ * loop()
+ *
+ */
 void Motor::update() {
     // if things are set up
     if (!initialized_) {
         // TODO: add more descriptive messages to help with debugging
         return;
     }
-    calculateControlledVariable();
-    const uint32_t now_us = micros();
-    const uint32_t dt_us = now_us - startTime_us_;
-    startTime_us_ = now_us;
+
+    calculateControlledVariable();   // calculates yRPM
+
+    
+    const uint32_t currentControlUpdateTimestamp_us = micros();
+    const uint32_t controlUpdateInterval_us = currentControlUpdateTimestamp_us - previousControlUpdateTimestamp_us_;
+    previousControlUpdateTimestamp_us_ = currentControlUpdateTimestamp_us;
     if (goalRPM_ <= 0.0f) {
         stop();
         return;
     }
-    if (dt_us == 0) {
+    if (controlUpdateInterval_us == 0) {
         return;
     }
     const float errorRPM = goalRPM_ - yRPM_;
-    const float output = piController(errorRPM, dt_us / 1000000.0f);
+    const float output = piController(errorRPM, controlUpdateInterval_us / 1000000.0f);
 
     applyPWM(static_cast<int>(output));
 }
 
+/**
+ * helper function. stops motor and resets all telemetry to zero.
+ */
 void Motor::stop() {
     goalRPM_ = 0.0f;
     accumErrorIntegral_PWM = 0.0f;
     actuatingSignal_PWM_ = 0;
     if (initialized_) {
         applyPWM(0);
-        startTime_us_ = micros();
+        previousControlUpdateTimestamp_us_ = micros();
     }
     // Retain encoder feedback: the wheel may still be coasting.
 }
 
+/**
+ * simple getter, returns stored yRPM_ value
+ * @return yRPM
+ */
 float Motor::getRPM() const {
     return yRPM_;
 }
 
+/**
+ * simple setter, sets gains used in proportional control
+ * @param kp, ki
+ */
 void Motor::setGains(float kp, float ki) {
     if (isfinite(kp) && isfinite(ki) && kp >= 0.0f && ki >= 0.0f) {
         kp_ = kp;
@@ -126,12 +146,15 @@ void Motor::setGains(float kp, float ki) {
     }
 }
 
+/**
+ * initialized in <loc>EncoderISR() function before setup and passed to <loc>.setUpMotor(<loc>EncoderISR);
+ */
 void Motor::onEncoderPulse() {
-    const uint32_t now_us = micros();
-    const uint32_t elapsed_us = now_us - lastEncoderTime_us_;
-    elapsedEncoderTime_us_ =
-        (hasEncoderPulse_ && elapsed_us <= STOP_TIMEOUT_US) ? elapsed_us : 0;
-    lastEncoderTime_us_ = now_us;
+    const uint32_t currentEncoderPulseTimestamp_us = micros();
+    const uint32_t encoderPulseInterval_us = currentEncoderPulseTimestamp_us - latestEncoderPulseTimestamp_us_;
+    encoderPulseInterval_us_ =
+        (hasEncoderPulse_ && encoderPulseInterval_us <= ENCODER_NO_PULSE_TIMEOUT_US) ? encoderPulseInterval_us : 0;
+    latestEncoderPulseTimestamp_us_ = currentEncoderPulseTimestamp_us;
     hasEncoderPulse_ = true;
     // Direction decoding is deferred until reverse control is implemented.
 }
@@ -140,34 +163,48 @@ void Motor::calculateControlledVariable() {
     // Call from the main loop with interrupts enabled. Volatile alone does
     // not prevent torn multi-byte reads; copy all ISR state together.
     noInterrupts();
-    const uint32_t last_us = lastEncoderTime_us_;
-    const uint32_t period_us = elapsedEncoderTime_us_;
+    const uint32_t latestEncoderPulseTimestampSnapshot_us = latestEncoderPulseTimestamp_us_;
+    const uint32_t encoderPulseIntervalSnapshot_us = encoderPulseInterval_us_;
     const bool hasPulse = hasEncoderPulse_;
     interrupts();
 
-    if (!hasPulse || period_us == 0 || micros() - last_us > STOP_TIMEOUT_US) {
+    const uint32_t encoderPulseAge_us =
+        micros() - latestEncoderPulseTimestampSnapshot_us;
+
+    // TODO: investigate if all 3 are necessary, in which cases one fails
+    if (!hasPulse || encoderPulseIntervalSnapshot_us == 0 || encoderPulseAge_us > ENCODER_NO_PULSE_TIMEOUT_US) {
         yRPM_ = 0.0f;
+
     } else {
         // Convert before multiplying to avoid integer overflow.
         yRPM_ = 60000000.0f /
-            (static_cast<float>(period_us) * encoderPulsesPerRev_ * gearRatio_);
+            (static_cast<float>(encoderPulseIntervalSnapshot_us) * encoderPulsesPerRev_ * gearRatio_);
     }
 }
 
-float Motor::piController(float errorRPM, float dtSeconds) {
+float Motor::piController(float errorRPM, float controlUpdateInterval_s) {
     const float errorProportional_PWM = kp_ * errorRPM;
 
-    // if there is a integral accumulation...
+    // if ki_ = 0, then integration is not enabled, skip this.
     if (ki_ > 0.0f) {
         // add new integral error to previous accumulated integral error, store in tmp
-        const float candidateAccumErrorIntegral_PWM = accumErrorIntegral_PWM + (errorRPM * dtSeconds);
+        const float candidateAccumErrorIntegral_PWM = accumErrorIntegral_PWM + (errorRPM * controlUpdateInterval_s);
         const float candidateOutput_PWM = errorProportional_PWM + (ki_ * candidateAccumErrorIntegral_PWM);
 
-        // Integrate if;
-        // errorRPM = goalRPM_ - yRPM_;
-        if ((candidateOutput_PWM >= 0.0f && candidateOutput_PWM <= 255.0f) ||  // 1. within range, no windup
-            (candidateOutput_PWM > 255.0f && errorRPM < 0.0f) ||                // 2. overshoot & need to slow down, will eat away at accumulated integrl error
-            (candidateOutput_PWM < 0.0f && errorRPM > 0.0f)) {                  // 3. need to speed up
+        /**
+         * Only keep candidate AccumErrorIntegral_PWM if one of three conditions is met;
+         * case 1: motor impulse is not saturated
+         * case 2: motor impulse is saturated and yRPM > goalRPM        (neg #) = k_p * (neg #) + k_i * (neg #)
+         * case 3: motor impulse is effectively 0 and yRPM < goalRPM    (pos #) = k_p * (pos #) + k_i * (pos #)
+         *
+         * More importantly are the cases that are excluded. For example, if the the motor impulse is already saturated and
+         * yRPM < goalRPM, don't continue to keep track of this discrepancy, the motor is going at full max and
+         * additional penalty though the accumErrorIntegral_PWM won't contribute to reaching the goal any quicker. If anything,
+         * there will be a whiplash once yRPM = goalRPM because of the acucmErrorIntegral_PWM will have been accuring all the while.
+         */
+        if ((candidateOutput_PWM >= 0.0f && candidateOutput_PWM <= 255.0f) ||
+            (candidateOutput_PWM > 255.0f && errorRPM < 0.0f) ||
+            (candidateOutput_PWM < 0.0f && errorRPM > 0.0f)) {
             accumErrorIntegral_PWM = candidateAccumErrorIntegral_PWM;
         }
     }
@@ -175,6 +212,10 @@ float Motor::piController(float errorRPM, float dtSeconds) {
     return constrain(errorProportional_PWM + ki_ * accumErrorIntegral_PWM, 0.0f, 255.0f);
 }
 
+/**
+ * sends PWM signal to motor through analogWrite(pin, pwm)
+ * @param pwm that has not yet been constrained 0-255
+ */
 void Motor::applyPWM(int pwm) {
     actuatingSignal_PWM_ = constrain(pwm, 0, 255);
     analogWrite(in2_, 0);

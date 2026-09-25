@@ -22,12 +22,23 @@ void leftEncoderISR() {
   leftMotor.onEncoderPulse();
 }
 
-
 void setup() {
   Serial.begin(9600);
   rightMotor.setUpMotor(rightEncoderISR);
+  rightMotor.stop();
   leftMotor.setUpMotor(leftEncoderISR);
+  leftMotor.stop();
   delay(100);
+
+
+
+  rightMotor.setNewGoalSpeed(2);
+  rightMotor.setGains(3, 2);
+
+  leftMotor.setNewGoalSpeed(5);
+  leftMotor.setGains(3, 2);
+
+
 }
 
 void loop() {
@@ -38,8 +49,10 @@ void loop() {
   okay for now because assuming that the loop runs very quickly.
   */
 
-  // motor input
-  rightMotor.applyPWM(255);
-  leftMotor.applyPWM(255);
+  rightMotor.update();
+  leftMotor.update();
+
+
+
 
 }
