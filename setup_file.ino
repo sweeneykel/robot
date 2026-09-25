@@ -5,19 +5,28 @@ constexpr uint32_t PRINT_INTERVAL_MS = 1000;  // 100 = 10 prints per second
 
 //Initialize right motor
 Motor rightMotor(RIGHT_MOTOR_IN1, RIGHT_MOTOR_IN2,
-                RIGHT_ENCODER_GREEN_SPEED, RIGHT_ENCODER_GREEN_SPEED,
+                RIGHT_ENCODER_GREEN_SPEED, RIGHT_ENCODER_YELLOW_DIR,
                 RIGHT_GEARING, RIGHT_ENCODERMULT, RIGHT_WHEEL_CIRCUMFERENCE_CM);
+
+//Initialize left motor
+Motor leftMotor(LEFT_MOTOR_IN1, LEFT_MOTOR_IN2,
+                LEFT_ENCODER_GREEN_SPEED, LEFT_ENCODER_YELLOW_DIR,
+                LEFT_GEARING, LEFT_ENCODERMULT, LEFT_WHEEL_CIRCUMFERENCE_CM);
 
 // TODO: UNDERSTAND THIS!
 void rightEncoderISR() {
   rightMotor.onEncoderPulse();
 }
 
-// Initialize left motor
+void leftEncoderISR() {
+  leftMotor.onEncoderPulse();
+}
+
 
 void setup() {
   Serial.begin(9600);
   rightMotor.setUpMotor(rightEncoderISR);
+  leftMotor.setUpMotor(leftEncoderISR);
   delay(100);
 }
 
@@ -31,5 +40,6 @@ void loop() {
 
   // motor input
   rightMotor.applyPWM(255);
+  leftMotor.applyPWM(255);
 
 }
