@@ -3,56 +3,63 @@
 
 constexpr uint32_t PRINT_INTERVAL_MS = 1000;  // 100 = 10 prints per second
 
-//Initialize right motor
 Motor rightMotor(RIGHT_MOTOR_IN1, RIGHT_MOTOR_IN2,
-                RIGHT_ENCODER_GREEN_SPEED, RIGHT_ENCODER_YELLOW_DIR,
-                RIGHT_GEARING, RIGHT_ENCODERMULT, RIGHT_WHEEL_CIRCUMFERENCE_CM);
+                 RIGHT_ENCODER_GREEN_SPEED, RIGHT_ENCODER_YELLOW_DIR,
+                 RIGHT_GEARING, RIGHT_ENCODERMULT, RIGHT_WHEEL_CIRCUMFERENCE_CM);
 
-//Initialize left motor
 Motor leftMotor(LEFT_MOTOR_IN1, LEFT_MOTOR_IN2,
                 LEFT_ENCODER_GREEN_SPEED, LEFT_ENCODER_YELLOW_DIR,
                 LEFT_GEARING, LEFT_ENCODERMULT, LEFT_WHEEL_CIRCUMFERENCE_CM);
 
 // TODO: UNDERSTAND THIS!
 void rightEncoderISR() {
-  rightMotor.onEncoderPulse();
+    rightMotor.onEncoderPulse();
 }
 
 void leftEncoderISR() {
-  leftMotor.onEncoderPulse();
+    leftMotor.onEncoderPulse();
 }
 
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(115200);
   rightMotor.setUpMotor(rightEncoderISR);
   rightMotor.stop();
   leftMotor.setUpMotor(leftEncoderISR);
   leftMotor.stop();
   delay(100);
 
-
-
-  rightMotor.setNewGoalSpeed(2);
+  /**
+  rightMotor.setGoalRPM(6);
+  Serial.println("right motor goalRPM is: ");
+  Serial.println(rightMotor.getGoalRPM());
   rightMotor.setGains(3, 2);
 
-  leftMotor.setNewGoalSpeed(5);
+  leftMotor.setGoalRPM(6);
+  Serial.println("left motor goalRPM is: ");
+  Serial.println(leftMotor.getGoalRPM());
   leftMotor.setGains(3, 2);
-
-
+  */
 }
 
 void loop() {
-  /*
-  interrupt event to watch for: new goal speed set. Currently, will run entire loop and 
-  only check if goalSpeed is updated once back at the beginning. TODO: create a type of 
-  variable interrupt so that if a new speed is assigned, this is immediately implemented.
-  okay for now because assuming that the loop runs very quickly.
-  */
+  readSerialMessages();
 
   rightMotor.update();
   leftMotor.update();
 
 
+/**
+  static uint32_t lastPrint_ms = 0;
+  uint32_t now_ms = millis();
+  constexpr uint32_t PRINT_INTERVAL_MS = 10000;  // 100 = 10 prints per second
 
-
+  if (now_ms - lastPrint_ms >= PRINT_INTERVAL_MS) {
+    lastPrint_ms = now_ms;
+    Serial.println("right motor RPM: ");
+    Serial.println(rightMotor.getRPM());
+    Serial.println("left motor RPM: ");
+    Serial.println(leftMotor.getRPM());
+  }
+*/
 }
+

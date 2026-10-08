@@ -19,10 +19,13 @@ public:
     void update();
     void stop();
     float getRPM() const;
+    float getGoalRPM() const;
     void setGains(float kp, float ki);
     // Called only from this motor's interrupt wrapper.
     void onEncoderPulse();
     void applyPWM(int pwm);
+    void setGoalRPM(float sGoalRPM);
+
 
 
 private:

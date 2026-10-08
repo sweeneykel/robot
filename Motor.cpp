@@ -83,6 +83,18 @@ void Motor::setNewGoalSpeed(float speedCmPerSecond) {
 }
 
 /**
+ * Used for testing purposes. Set RPM which is easier to test than cm/s.
+*/
+void Motor::setGoalRPM(float sGoalRPM) {
+    if (!initialized_ || !isfinite(sGoalRPM) || sGoalRPM <= 0.0f) {
+        // TODO: add more descriptive messages to help with debugging
+        stop();
+        return;
+    }
+    goalRPM_ = sGoalRPM;
+}
+
+/**
  * loop()
  *
  */
@@ -95,7 +107,6 @@ void Motor::update() {
 
     calculateControlledVariable();   // calculates yRPM
 
-    
     const uint32_t currentControlUpdateTimestamp_us = micros();
     const uint32_t controlUpdateInterval_us = currentControlUpdateTimestamp_us - previousControlUpdateTimestamp_us_;
     previousControlUpdateTimestamp_us_ = currentControlUpdateTimestamp_us;
@@ -132,6 +143,14 @@ void Motor::stop() {
  */
 float Motor::getRPM() const {
     return yRPM_;
+}
+
+/**
+ * simple getter, returns stored yRPM_ value
+ * @return yRPM
+ */
+float Motor::getGoalRPM() const {
+    return goalRPM_;
 }
 
 /**

@@ -1,0 +1,7 @@
+next things to do are
+-cofirm that feedback is working
+-make logs and printout so that I can troubleshoot in
+the future
+
+then need to work on bluetooth and making it
+cordless

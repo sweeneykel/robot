@@ -1,5 +1,8 @@
 #pragma once
 
+#include "Motor.h"
+
+
 /*
 Configuration: Compile time items that are defined
 */
@@ -23,5 +26,10 @@ constexpr int LEFT_GEARING = 298;
 constexpr int LEFT_ENCODERMULT = 14; // counts per revolution
 
 // specific to a particular wheelset
-constexpr float RIGHT_WHEEL_CIRCUMFERENCE_CM = 7.0;
-constexpr float LEFT_WHEEL_CIRCUMFERENCE_CM = 7.0;
+constexpr float RIGHT_WHEEL_CIRCUMFERENCE_CM = 21.5;
+constexpr float LEFT_WHEEL_CIRCUMFERENCE_CM = 21.5;
+
+// max size of message that can be sent
+const int MAX_MSG_SIZE = 10; // Total allocated space
+
+
