@@ -25,8 +25,8 @@ public:
     void onEncoderPulse();
     void applyPWM(int pwm);
     void setGoalRPM(float sGoalRPM);
-
-
+    float accumErrorIntegral_PWM = 0.0f;  // private
+    int actuatingSignal_PWM_ = 0;         // private
 
 private:
     void calculateControlledVariable();
@@ -46,11 +46,12 @@ private:
     bool initialized_ = false;
     float goalRPM_ = 0.0f;
     float yRPM_ = 0.0f;
-    float accumErrorIntegral_PWM = 0.0f;
+    
     uint32_t previousControlUpdateTimestamp_us_ = 0;
-    int actuatingSignal_PWM_ = 0;
-    float kp_ = 7.0f;
-    float ki_ = 2.0f;
+    // int actuatingSignal_PWM_ = 0;
+    float kp_ = 0.0f;
+    float ki_ = 0.0f;
+    // float accumErrorIntegral_PWM = 0.0f;
 
     volatile uint32_t latestEncoderPulseTimestamp_us_ = 0;
     volatile uint32_t encoderPulseInterval_us_ = 0;

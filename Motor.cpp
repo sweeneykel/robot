@@ -68,11 +68,6 @@ bool Motor::setUpMotor(void (*encoderISR)()) {
  * @param speedCmPerSecond
  */
 void Motor::setNewGoalSpeed(float speedCmPerSecond) {
-    if (!initialized_ || !isfinite(speedCmPerSecond) || speedCmPerSecond <= 0.0f) {
-        // TODO: add more descriptive messages to help with debugging
-        stop();
-        return;
-    }
     const float newGoalRPM = speedCmPerSecond * 60.0f / wheelCircumferenceCm_;
     if (!isfinite(newGoalRPM)) {
         // TODO: add more descriptive messages to help with debugging
@@ -86,11 +81,6 @@ void Motor::setNewGoalSpeed(float speedCmPerSecond) {
  * Used for testing purposes. Set RPM which is easier to test than cm/s.
 */
 void Motor::setGoalRPM(float sGoalRPM) {
-    if (!initialized_ || !isfinite(sGoalRPM) || sGoalRPM <= 0.0f) {
-        // TODO: add more descriptive messages to help with debugging
-        stop();
-        return;
-    }
     goalRPM_ = sGoalRPM;
 }
 
@@ -117,6 +107,7 @@ void Motor::update() {
     if (controlUpdateInterval_us == 0) {
         return;
     }
+    
     const float errorRPM = goalRPM_ - yRPM_;
     const float output = piController(errorRPM, controlUpdateInterval_us / 1000000.0f);
 
@@ -170,7 +161,12 @@ void Motor::setGains(float kp, float ki) {
  */
 void Motor::onEncoderPulse() {
     const uint32_t currentEncoderPulseTimestamp_us = micros();
+    // encoderPulseInterval_us is the time between now and the last time the encoder triggered
+    // if this is the first time the encoder is triggered (just after setup) then latestEncoderPulseTimestamp_us_=0
     const uint32_t encoderPulseInterval_us = currentEncoderPulseTimestamp_us - latestEncoderPulseTimestamp_us_;
+    // if first time encoder is triggered, then hasEncoderPulse is still set to false, so interval is set to 0
+    // if encoder has been triggered before and interval between then and now is small enough, save this interval
+    // if encoder has been triggered before and interval between then and now is large enough, set interval to 0
     encoderPulseInterval_us_ =
         (hasEncoderPulse_ && encoderPulseInterval_us <= ENCODER_NO_PULSE_TIMEOUT_US) ? encoderPulseInterval_us : 0;
     latestEncoderPulseTimestamp_us_ = currentEncoderPulseTimestamp_us;
@@ -184,14 +180,16 @@ void Motor::calculateControlledVariable() {
     noInterrupts();
     const uint32_t latestEncoderPulseTimestampSnapshot_us = latestEncoderPulseTimestamp_us_;
     const uint32_t encoderPulseIntervalSnapshot_us = encoderPulseInterval_us_;
-    const bool hasPulse = hasEncoderPulse_;
+    const bool hasEncoderPulseSnapshot = hasEncoderPulse_;
     interrupts();
 
     const uint32_t encoderPulseAge_us =
         micros() - latestEncoderPulseTimestampSnapshot_us;
 
-    // TODO: investigate if all 3 are necessary, in which cases one fails
-    if (!hasPulse || encoderPulseIntervalSnapshot_us == 0 || encoderPulseAge_us > ENCODER_NO_PULSE_TIMEOUT_US) {
+    // if encoder hasn't been triggered yet then motor isn't moving yet so yRPM = 0
+    // if encoderPulseIntervalSnapshot has been set to zero because either idle or ramping up very slowly (too slow to detect) yRPM  = 0
+    // if it has been quite a while since the last encoderPulse then set yRPM = 0
+    if (!hasEncoderPulseSnapshot || encoderPulseIntervalSnapshot_us == 0 || encoderPulseAge_us > ENCODER_NO_PULSE_TIMEOUT_US) {
         yRPM_ = 0.0f;
 
     } else {

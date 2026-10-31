@@ -1,4 +1,11 @@
 #pragma once
 
-bool parse_message(const String& message);
-void readSerialMessages();
+#include <Arduino.h>
+
+struct MotorSpeeds {
+    float right;
+    float left;
+    bool valid;
+};
+
+MotorSpeeds parse_message(const String& message);

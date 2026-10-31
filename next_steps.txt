@@ -1,7 +1,22 @@
-next things to do are
--cofirm that feedback is working
--make logs and printout so that I can troubleshoot in
-the future
+Controller TODO
 
-then need to work on bluetooth and making it
-cordless
+[ ] Fix the parser build layout: move parse_message/parse_message.ino back
+    into the sketch root, or convert it to a root-level .cpp file.
+[ ] Add a command timeout watchdog.
+    Review comment: "No command timeout: after receiving a positive speed,
+    the motors keep that target indefinitely, even if the sender disconnects."
+    Stop both motors when valid commands stop arriving; choose a timeout
+    based on the expected command rate.
+[ ] Replace blocking Serial.readStringUntil() with nonblocking input handling
+    so partial messages cannot pause motor control updates.
+[ ] Confirm encoder feedback is working with the wheels lifted.
+[ ] Add a stall / missing-feedback shutdown so lost encoder feedback cannot
+    cause the controller to keep increasing PWM toward maximum.
+[ ] Implement reverse drive and encoder direction decoding, or explicitly
+    reject backward commands until reverse is supported.
+[ ] Check motor initialization results and report failures.
+[ ] Improve troubleshooting logs: remove the duplicate left RPM output,
+    end each telemetry line, and include target RPM and PWM for both motors.
+[ ] Document that serial speed commands currently use RPM, not cm/s.
+[ ] Verify the sketch compiles for the intended Arduino board.
+[ ] Add Bluetooth control and make the controller cordless.
