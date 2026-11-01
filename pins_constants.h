@@ -9,9 +9,9 @@ Configuration: Compile time items that are defined
 
 // write to motor via these connections
 constexpr uint8_t RIGHT_MOTOR_IN1 = 5;
-constexpr uint8_t RIGHT_MOTOR_IN2 = 6;
+constexpr uint8_t RIGHT_MOTOR_IN2 = 6;  // RED
 constexpr uint8_t LEFT_MOTOR_IN1 = 10;
-constexpr uint8_t LEFT_MOTOR_IN2 = 9;
+constexpr uint8_t LEFT_MOTOR_IN2 = 9; // RED
 
 // read from motor via these connections
 constexpr uint8_t RIGHT_ENCODER_GREEN_SPEED = 2; // interrupt only 2 or 3

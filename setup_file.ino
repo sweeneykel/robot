@@ -31,32 +31,60 @@ void setup() {
 
   rightMotor.setGains(4, 2);
   leftMotor.setGains(4, 2);
+
 }
 
 void loop() 
 {
-  if (Serial.available() > 0) 
-  {
-        // It stops at '\n' and does not include it in the returned String. The newline is consumed from the serial buffer.
-        String msg = Serial.readStringUntil('\n');
+  // Retain partial lines without waiting for more serial input.
+  static char commandBuffer[MAX_MSG_SIZE + 1] = {};
+  static uint8_t commandLength = 0;
+  static bool discardLine = false;
+  static bool sawCarriageReturn = false;
+  constexpr uint8_t SERIAL_BYTES_PER_LOOP = 16;
 
-        MotorSpeeds parsedMsg = parse_message(msg);
+  for (uint8_t bytesRead = 0;
+       bytesRead < SERIAL_BYTES_PER_LOOP && Serial.available() > 0;
+       ++bytesRead) {
+    const int incoming = Serial.read();
+    if (incoming < 0) break;
+    const char ch = static_cast<char>(incoming);
 
-        if (parsedMsg.valid)
-        {
-          Serial.println("passed parsing!");
+    if (ch == '\n') {
+      if (!discardLine && commandLength == MAX_MSG_SIZE) {
+        commandBuffer[commandLength] = '\0';
+        MotorSpeeds parsedMsg = parse_message(String(commandBuffer));
+        if (parsedMsg.valid) {
           rightMotor.setGoalRPM(parsedMsg.right);
           leftMotor.setGoalRPM(parsedMsg.left);
-          Serial.print("rightMotorGoal: ");
-          Serial.println(rightMotor.getGoalRPM());
-          Serial.print("leftMotorGoal: ");
-          Serial.println(leftMotor.getGoalRPM());
         }
+      }
+      commandLength = 0;
+      discardLine = false;
+      sawCarriageReturn = false;
+      // Process at most one complete line before updating the motors.
+      break;
+    }
+
+    if (discardLine) continue;
+    // Accept CR only immediately before LF, never inside a command.
+    if (sawCarriageReturn) {
+      discardLine = true;
+    } else if (ch == '\r') {
+      sawCarriageReturn = true;
+    } else if (ch == '\0' || commandLength >= MAX_MSG_SIZE) {
+      // Discard the entire bad line; never interpret its tail as a command.
+      discardLine = true;
+    } else {
+      commandBuffer[commandLength++] = ch;
+    }
   }
 
   rightMotor.update();
   leftMotor.update();
 
+
+  // only print every once in a while
   static uint32_t lastPrint_ms = 0;
   uint32_t now_ms = millis();
   constexpr uint32_t PRINT_INTERVAL_MS = 1000;  // 100 = 10 prints per second

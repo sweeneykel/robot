@@ -7,7 +7,7 @@ Controller TODO
     the motors keep that target indefinitely, even if the sender disconnects."
     Stop both motors when valid commands stop arriving; choose a timeout
     based on the expected command rate.
-[ ] Replace blocking Serial.readStringUntil() with nonblocking input handling
+[x] Replace blocking Serial.readStringUntil() with nonblocking input handling
     so partial messages cannot pause motor control updates.
 [ ] Confirm encoder feedback is working with the wheels lifted.
 [ ] Add a stall / missing-feedback shutdown so lost encoder feedback cannot

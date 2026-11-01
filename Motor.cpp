@@ -86,7 +86,10 @@ void Motor::setGoalRPM(float sGoalRPM) {
 
 /**
  * loop()
- *
+ * calculateControlledVariable()
+ * get errorRPM
+ * piController(errorRPM)
+ * applyPWM
  */
 void Motor::update() {
     // if things are set up
